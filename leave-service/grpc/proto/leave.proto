@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package leave;
+
+service LeaveService {
+  rpc GetLeaveBalance(LeaveBalanceRequest) returns (LeaveBalanceResponse);
+  rpc GetEmployeeLeaves(EmployeeLeavesRequest) returns (EmployeeLeavesResponse);
+}
+
+message LeaveBalanceRequest {
+  string employeeId = 1;
+}
+
+message LeaveBalanceResponse {
+  int32 annualBalance = 1;
+  int32 sickBalance = 2;
+  int32 casualBalance = 3;
+  int32 usedAnnual = 4;
+  int32 usedSick = 5;
+  int32 usedCasual = 6;
+}
+
+message LeaveRecord {
+  string id = 1;
+  string employeeId = 2;
+  string type = 3;
+  string startDate = 4;
+  string endDate = 5;
+  string status = 6;
+  string reason = 7;
+}
+
+message EmployeeLeavesRequest {
+  string employeeId = 1;
+}
+
+message EmployeeLeavesResponse {
+  repeated LeaveRecord leaves = 1;
+}

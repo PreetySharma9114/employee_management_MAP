@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package department;
+
+service DepartmentService {
+  rpc GetDepartment(GetDepartmentRequest) returns (GetDepartmentResponse);
+  rpc GetAllDepartments(GetAllDepartmentsRequest) returns (GetAllDepartmentsResponse);
+  rpc DepartmentExists(DepartmentExistsRequest) returns (DepartmentExistsResponse);
+}
+
+message GetDepartmentRequest {
+  string id = 1;
+}
+
+message GetDepartmentResponse {
+  bool found = 1;
+  string id = 2;
+  string name = 3;
+  string description = 4;
+  string managerId = 5;
+  double budget = 6;
+}
+
+message GetAllDepartmentsRequest {}
+
+message DepartmentItem {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string managerId = 4;
+  double budget = 5;
+}
+
+message GetAllDepartmentsResponse {
+  repeated DepartmentItem departments = 1;
+}
+
+message DepartmentExistsRequest {
+  string name = 1;
+}
+
+message DepartmentExistsResponse {
+  bool exists = 1;
+  string id = 2;
+}

@@ -1,0 +1,12 @@
+node_modules
+.env
+build
+dist
+coverage
+.vscode
+.DS_Store
+npm-debug.log
+
+frontend/node_modules
+backend/node_modules
+grpc-service/node_modules

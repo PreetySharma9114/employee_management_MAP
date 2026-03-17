@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package payroll;
+
+service PayrollService {
+  rpc CalculateSalary(SalaryRequest) returns (SalaryResponse);
+}
+
+message SalaryRequest {
+  double baseSalary = 1;
+}
+
+message SalaryResponse {
+  double finalSalary = 2;
+  double taxDeduction = 3;
+  double taxRate = 4;
+}

@@ -1,0 +1,16 @@
+{
+  "name": "employee-grpc-service",
+  "version": "1.0.0",
+  "description": "gRPC Payroll Service for Employee Management",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.9.0",
+    "@grpc/proto-loader": "^0.7.8"
+  },
+  "keywords": ["grpc", "payroll", "microservice"],
+  "author": "",
+  "license": "MIT"
+}

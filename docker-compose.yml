@@ -1,0 +1,217 @@
+services:
+
+  # -------------------------------------------------------------------------
+  # Infrastructure
+  # -------------------------------------------------------------------------
+
+  activemq:
+    image: rmohr/activemq:5.15.9-alpine
+    container_name: activemq
+    ports:
+      - "61613:61613"   # STOMP
+      - "61616:61616"   # OpenWire / JMS
+      - "8161:8161"     # Admin Web Console  (admin/admin)
+    environment:
+      - ACTIVEMQ_ADMIN_LOGIN=admin
+      - ACTIVEMQ_ADMIN_PASSWORD=admin
+    networks:
+      - employee-network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z localhost 61613"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------------------
+  # Existing services
+  # -------------------------------------------------------------------------
+
+  grpc-service:
+    build:
+      context: ./grpc-service
+      dockerfile: Dockerfile
+    container_name: payroll-grpc-service
+    ports:
+      - "50051:50051"
+    networks:
+      - employee-network
+    environment:
+      - GRPC_PORT=50051
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: employee-backend
+    ports:
+      - "3001:3001"
+    networks:
+      - employee-network
+    environment:
+      - PORT=3001
+      - GRPC_HOST=grpc-service
+      - GRPC_PORT=50051
+      - ACTIVEMQ_HOST=activemq
+      - ACTIVEMQ_PORT=61613
+      - ACTIVEMQ_USER=admin
+      - ACTIVEMQ_PASS=admin
+      - AUTH_GRPC_HOST=auth-service
+      - AUTH_GRPC_PORT=50052
+      - DEPT_GRPC_HOST=department-service
+      - DEPT_GRPC_PORT=50054
+    depends_on:
+      - grpc-service
+      - activemq
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: employee-frontend
+    ports:
+      - "80:80"
+    networks:
+      - employee-network
+    depends_on:
+      - backend
+
+  # -------------------------------------------------------------------------
+  # New microservices
+  # -------------------------------------------------------------------------
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "3002:3002"
+      - "50052:50052"
+    networks:
+      - employee-network
+    environment:
+      - PORT=3002
+      - GRPC_PORT=50052
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - JWT_EXPIRES_IN=24h
+      - ACTIVEMQ_HOST=activemq
+      - ACTIVEMQ_PORT=61613
+      - ACTIVEMQ_USER=admin
+      - ACTIVEMQ_PASS=admin
+      - NODE_ENV=production
+    depends_on:
+      activemq:
+        condition: service_healthy
+
+  leave-service:
+    build:
+      context: ./leave-service
+      dockerfile: Dockerfile
+    container_name: leave-service
+    ports:
+      - "3003:3003"
+      - "50053:50053"
+    networks:
+      - employee-network
+    environment:
+      - PORT=3003
+      - GRPC_PORT=50053
+      - ACTIVEMQ_HOST=activemq
+      - ACTIVEMQ_PORT=61613
+      - ACTIVEMQ_USER=admin
+      - ACTIVEMQ_PASS=admin
+      - NODE_ENV=production
+    depends_on:
+      activemq:
+        condition: service_healthy
+
+  attendance-service:
+    build:
+      context: ./attendance-service
+      dockerfile: Dockerfile
+    container_name: attendance-service
+    ports:
+      - "3004:3004"
+    networks:
+      - employee-network
+    environment:
+      - PORT=3004
+      - ACTIVEMQ_HOST=activemq
+      - ACTIVEMQ_PORT=61613
+      - ACTIVEMQ_USER=admin
+      - ACTIVEMQ_PASS=admin
+      - NODE_ENV=production
+    depends_on:
+      activemq:
+        condition: service_healthy
+
+  department-service:
+    build:
+      context: ./department-service
+      dockerfile: Dockerfile
+    container_name: department-service
+    ports:
+      - "3005:3005"
+      - "50054:50054"
+    networks:
+      - employee-network
+    environment:
+      - PORT=3005
+      - GRPC_PORT=50054
+      - ACTIVEMQ_HOST=activemq
+      - ACTIVEMQ_PORT=61613
+      - ACTIVEMQ_USER=admin
+      - ACTIVEMQ_PASS=admin
+      - NODE_ENV=production
+    depends_on:
+      activemq:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    ports:
+      - "3006:3006"
+    networks:
+      - employee-network
+    environment:
+      - PORT=3006
+      - ACTIVEMQ_HOST=activemq
+      - ACTIVEMQ_PORT=61613
+      - ACTIVEMQ_USER=admin
+      - ACTIVEMQ_PASS=admin
+      - NODE_ENV=production
+    depends_on:
+      activemq:
+        condition: service_healthy
+
+  # -------------------------------------------------------------------------
+  # NGINX API Gateway
+  # -------------------------------------------------------------------------
+
+  nginx-gateway:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: nginx-gateway
+    ports:
+      - "8080:8080"     # HTTP API Gateway
+    networks:
+      - employee-network
+    depends_on:
+      - backend
+      - auth-service
+      - leave-service
+      - attendance-service
+      - department-service
+      - notification-service
+
+networks:
+  employee-network:
+    driver: bridge
+
+volumes:
+  grpc-data:
+    driver: local
