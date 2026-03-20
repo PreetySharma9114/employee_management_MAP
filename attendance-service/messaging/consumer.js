@@ -26,9 +26,10 @@ function handleEvent(eventType, payload) {
 function startConsumer() {
   const reconnectOptions = {
     initialReconnectDelay: 1000,
-    maxReconnectDelay: 10000,
+    maxReconnectDelay: 15000,
     useExponentialBackOff: true,
-    maxReconnects: 10,
+    // Keep trying forever in dev so the consumer eventually stabilizes.
+    maxReconnects: -1,
     randomize: false
   };
 
