@@ -1,0 +1,85 @@
+{
+  "id": "ems-local-env-2026",
+  "name": "EMS Local",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "default",
+      "enabled": true,
+      "description": "NGINX API Gateway — all requests go through here"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "secret",
+      "enabled": true,
+      "description": "JWT token — auto-filled after Login request"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Auth user ID — auto-filled after Register"
+    },
+    {
+      "key": "employee_id",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Employee ID — auto-filled after Create Employee"
+    },
+    {
+      "key": "dept_id",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Department ID — auto-filled after Create Department"
+    },
+    {
+      "key": "leave_id",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Leave request ID — auto-filled after Submit Leave"
+    },
+    {
+      "key": "attendance_id",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Attendance record ID — auto-filled after Check In"
+    },
+    {
+      "key": "grpc_payroll",
+      "value": "localhost:15051",
+      "type": "default",
+      "enabled": true,
+      "description": "Payroll gRPC server — PayrollService (payroll.proto)"
+    },
+    {
+      "key": "grpc_auth",
+      "value": "localhost:15052",
+      "type": "default",
+      "enabled": true,
+      "description": "Auth gRPC server — AuthService (auth.proto)"
+    },
+    {
+      "key": "grpc_leave",
+      "value": "localhost:15053",
+      "type": "default",
+      "enabled": true,
+      "description": "Leave gRPC server — LeaveService (leave.proto)"
+    },
+    {
+      "key": "grpc_dept",
+      "value": "localhost:15054",
+      "type": "default",
+      "enabled": true,
+      "description": "Department gRPC server — DepartmentService (department.proto)"
+    }
+  ],
+  "_postman_variable_scope": "environment",
+  "timestamp": 1742218200000
+}

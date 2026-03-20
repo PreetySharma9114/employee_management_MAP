@@ -1,0 +1,225 @@
+{
+  "info": {
+    "name": "Employee Management System - gRPC",
+    "_postman_id": "ems-grpc-2026",
+    "description": "Pure gRPC collection for all EMS gRPC services.\n\nIMPORT STEPS:\n1. Import this file into Postman (File -> Import)\n2. Also import EMS-Environment.json and select 'EMS Local' environment\n3. For each request, go to Service definition tab -> import the .proto file from the project\n4. Press Invoke\n\nPorts (host-mapped for Postman access):\n  Payroll    -> localhost:15051   proto: grpc-service/payroll.proto\n  Auth       -> localhost:15052   proto: auth-service/grpc/proto/auth.proto\n  Leave      -> localhost:15053   proto: leave-service/grpc/proto/leave.proto\n  Department -> localhost:15054   proto: department-service/grpc/proto/department.proto",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "grpc_payroll",  "value": "localhost:15051" },
+    { "key": "grpc_auth",     "value": "localhost:15052" },
+    { "key": "grpc_leave",    "value": "localhost:15053" },
+    { "key": "grpc_dept",     "value": "localhost:15054" },
+    { "key": "token",         "value": "" },
+    { "key": "user_id",       "value": "" },
+    { "key": "employee_id",   "value": "" },
+    { "key": "dept_id",       "value": "" }
+  ],
+  "item": [
+
+    {
+      "name": "Payroll Service",
+      "description": "Server: grpc://localhost:15051\nProto: grpc-service/payroll.proto\nPackage: payroll",
+      "item": [
+        {
+          "name": "CalculateSalary",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"baseSalary\": 95000\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "grpc://localhost:15051/payroll.PayrollService/CalculateSalary",
+              "protocol": "grpc",
+              "host": ["localhost"],
+              "port": "15051",
+              "path": ["payroll.PayrollService", "CalculateSalary"]
+            },
+            "description": "Calculates final salary after tax deduction.\n\nRequest:\n  baseSalary (double) - gross salary before tax\n\nResponse:\n  finalSalary  (double) - salary after deduction\n  taxDeduction (double) - amount deducted\n  taxRate      (double) - tax rate applied (e.g. 0.1 = 10%)\n\ngrpcurl:\n  grpcurl -plaintext -d '{\"baseSalary\":95000}' localhost:15051 payroll.PayrollService/CalculateSalary"
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "Auth Service",
+      "description": "Server: grpc://localhost:15052\nProto: auth-service/grpc/proto/auth.proto\nPackage: auth",
+      "item": [
+        {
+          "name": "ValidateToken",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"token\": \"{{token}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "grpc://localhost:15052/auth.AuthService/ValidateToken",
+              "protocol": "grpc",
+              "host": ["localhost"],
+              "port": "15052",
+              "path": ["auth.AuthService", "ValidateToken"]
+            },
+            "description": "Validates a JWT bearer token.\nRun 'Login' in the REST collection first to get {{token}}.\n\nRequest:\n  token (string) - JWT token\n\nResponse:\n  valid  (bool)   - true if token is valid\n  userId (string) - decoded user ID\n  email  (string) - decoded email\n  role   (string) - decoded role\n  error  (string) - reason if invalid\n\ngrpcurl:\n  grpcurl -plaintext -d '{\"token\":\"<jwt>\"}' localhost:15052 auth.AuthService/ValidateToken"
+          },
+          "response": []
+        },
+        {
+          "name": "GetUser",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userId\": \"{{user_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "grpc://localhost:15052/auth.AuthService/GetUser",
+              "protocol": "grpc",
+              "host": ["localhost"],
+              "port": "15052",
+              "path": ["auth.AuthService", "GetUser"]
+            },
+            "description": "Fetches a user record by ID.\n{{user_id}} is auto-set by the Register test script in the REST collection.\n\nRequest:\n  userId (string) - auth user ID\n\nResponse:\n  found      (bool)   - true if user exists\n  id         (string) - user ID\n  email      (string) - user email\n  role       (string) - user role\n  employeeId (string) - linked employee ID (if set)\n\ngrpcurl:\n  grpcurl -plaintext -d '{\"userId\":\"<id>\"}' localhost:15052 auth.AuthService/GetUser"
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "Leave Service",
+      "description": "Server: grpc://localhost:15053\nProto: leave-service/grpc/proto/leave.proto\nPackage: leave",
+      "item": [
+        {
+          "name": "GetLeaveBalance",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"employeeId\": \"{{employee_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "grpc://localhost:15053/leave.LeaveService/GetLeaveBalance",
+              "protocol": "grpc",
+              "host": ["localhost"],
+              "port": "15053",
+              "path": ["leave.LeaveService", "GetLeaveBalance"]
+            },
+            "description": "Returns the remaining leave balance for an employee.\n{{employee_id}} is auto-set by Create Employee in the REST collection.\n\nRequest:\n  employeeId (string) - employee ID\n\nResponse:\n  annualBalance  (int32) - remaining annual leaves\n  sickBalance    (int32) - remaining sick leaves\n  casualBalance  (int32) - remaining casual leaves\n  usedAnnual     (int32) - used annual leaves\n  usedSick       (int32) - used sick leaves\n  usedCasual     (int32) - used casual leaves\n\ngrpcurl:\n  grpcurl -plaintext -d '{\"employeeId\":\"<id>\"}' localhost:15053 leave.LeaveService/GetLeaveBalance"
+          },
+          "response": []
+        },
+        {
+          "name": "GetEmployeeLeaves",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"employeeId\": \"{{employee_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "grpc://localhost:15053/leave.LeaveService/GetEmployeeLeaves",
+              "protocol": "grpc",
+              "host": ["localhost"],
+              "port": "15053",
+              "path": ["leave.LeaveService", "GetEmployeeLeaves"]
+            },
+            "description": "Returns all leave requests for an employee.\n\nRequest:\n  employeeId (string) - employee ID\n\nResponse:\n  leaves[] - array of LeaveRecord:\n    id        (string) - leave request ID\n    employeeId(string)\n    type      (string) - annual | sick | casual\n    startDate (string) - YYYY-MM-DD\n    endDate   (string) - YYYY-MM-DD\n    status    (string) - pending | approved | rejected\n    reason    (string)\n\ngrpcurl:\n  grpcurl -plaintext -d '{\"employeeId\":\"<id>\"}' localhost:15053 leave.LeaveService/GetEmployeeLeaves"
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "Department Service",
+      "description": "Server: grpc://localhost:15054\nProto: department-service/grpc/proto/department.proto\nPackage: department",
+      "item": [
+        {
+          "name": "GetDepartment",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"id\": \"{{dept_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "grpc://localhost:15054/department.DepartmentService/GetDepartment",
+              "protocol": "grpc",
+              "host": ["localhost"],
+              "port": "15054",
+              "path": ["department.DepartmentService", "GetDepartment"]
+            },
+            "description": "Fetches a single department by ID.\n{{dept_id}} is auto-set by Create Department in the REST collection.\n\nRequest:\n  id (string) - department ID\n\nResponse:\n  found       (bool)   - true if department exists\n  id          (string)\n  name        (string)\n  description (string)\n  managerId   (string)\n  budget      (double)\n\ngrpcurl:\n  grpcurl -plaintext -d '{\"id\":\"<id>\"}' localhost:15054 department.DepartmentService/GetDepartment"
+          },
+          "response": []
+        },
+        {
+          "name": "GetAllDepartments",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "grpc://localhost:15054/department.DepartmentService/GetAllDepartments",
+              "protocol": "grpc",
+              "host": ["localhost"],
+              "port": "15054",
+              "path": ["department.DepartmentService", "GetAllDepartments"]
+            },
+            "description": "Returns all departments.\nSend an empty message body {}.\n\nResponse:\n  departments[] - array of DepartmentItem:\n    id          (string)\n    name        (string)\n    description (string)\n    managerId   (string)\n    budget      (double)\n\ngrpcurl:\n  grpcurl -plaintext -d '{}' localhost:15054 department.DepartmentService/GetAllDepartments"
+          },
+          "response": []
+        },
+        {
+          "name": "DepartmentExists",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Engineering\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "grpc://localhost:15054/department.DepartmentService/DepartmentExists",
+              "protocol": "grpc",
+              "host": ["localhost"],
+              "port": "15054",
+              "path": ["department.DepartmentService", "DepartmentExists"]
+            },
+            "description": "Checks whether a department with the given name exists.\n\nRequest:\n  name (string) - exact department name (case-sensitive)\n\nResponse:\n  exists (bool)   - true if found\n  id     (string) - department ID (only populated when exists=true)\n\ngrpcurl:\n  grpcurl -plaintext -d '{\"name\":\"Engineering\"}' localhost:15054 department.DepartmentService/DepartmentExists"
+          },
+          "response": []
+        }
+      ]
+    }
+
+  ]
+}

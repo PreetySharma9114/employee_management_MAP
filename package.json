@@ -1,0 +1,20 @@
+{
+  "name": "employee-management-system-main",
+  "version": "1.0.0",
+  "description": "A comprehensive Employee Management System built with MERN stack (without MongoDB), Docker containers, and gRPC microservice architecture. This project demonstrates modern web development practices including containerization, microservices, and API integration.",
+  "homepage": "https://github.com/PreetySharma9114/employee_management_MAP#readme",
+  "bugs": {
+    "url": "https://github.com/PreetySharma9114/employee_management_MAP/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PreetySharma9114/employee_management_MAP.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

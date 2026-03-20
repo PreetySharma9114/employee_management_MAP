@@ -1,0 +1,958 @@
+{
+  "info": {
+    "name": "Employee Management System — Full API",
+    "_postman_id": "ems-microservices-2026",
+    "description": "Complete API collection for all EMS microservices.\n\nIMPORT STEPS:\n1. Import this file into Postman (File → Import)\n2. Import EMS-Environment.json as the Environment\n3. Select 'EMS Local' environment from the dropdown\n4. Run requests in order: Auth → Departments → Employees → Leave → Attendance\n\nBase URL: http://localhost:8080 (via NGINX API Gateway)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",      "value": "http://localhost:8080" },
+    { "key": "token",         "value": "" },
+    { "key": "user_id",       "value": "" },
+    { "key": "employee_id",   "value": "" },
+    { "key": "dept_id",       "value": "" },
+    { "key": "leave_id",      "value": "" },
+    { "key": "attendance_id", "value": "" }
+  ],
+  "item": [
+
+    {
+      "name": "Auth Service",
+      "item": [
+        {
+          "name": "1. Register Admin User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/register", "host": ["{{base_url}}"], "path": ["api","auth","register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@company.com\",\n  \"password\": \"password123\",\n  \"role\": \"admin\"\n}"
+            },
+            "description": "Register a new admin user. Role can be: admin | manager | employee"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var res = pm.response.json();",
+                "pm.test('Register successful', () => pm.response.to.have.status(201));",
+                "if (res.success) {",
+                "  pm.collectionVariables.set('user_id', res.data.id);",
+                "  console.log('user_id saved:', res.data.id);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "2. Register Employee User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/register", "host": ["{{base_url}}"], "path": ["api","auth","register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@company.com\",\n  \"password\": \"pass1234\",\n  \"role\": \"employee\",\n  \"employeeId\": \"1\"\n}"
+            },
+            "description": "Register a user linked to an employee record."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 201 or 409', () => { pm.expect(pm.response.code).to.be.oneOf([201,409]); });"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "3. Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api","auth","login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@company.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "description": "Login and receive a JWT token. Token is auto-saved to {{token}} variable."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var res = pm.response.json();",
+                "pm.test('Login successful', () => pm.response.to.have.status(200));",
+                "if (res.success && res.data.token) {",
+                "  pm.collectionVariables.set('token', res.data.token);",
+                "  console.log('JWT token saved.');",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "4. Verify Token",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/auth/verify", "host": ["{{base_url}}"], "path": ["api","auth","verify"] },
+            "description": "Verify that the current JWT token is valid."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Token valid', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "5. Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/users", "host": ["{{base_url}}"], "path": ["api","auth","users"] },
+            "description": "List all registered users."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "6. Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["api","auth","users","{{user_id}}"] },
+            "description": "Get a specific user by their ID."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200 or 404', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "7. Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["api","auth","users","{{user_id}}"] },
+            "description": "Delete a user by ID."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Deleted or Not Found', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+
+    {
+      "name": "Department Service",
+      "item": [
+        {
+          "name": "1. Create Department — Engineering",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/departments", "host": ["{{base_url}}"], "path": ["api","departments"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Engineering\",\n  \"description\": \"Responsible for all software development and architecture\",\n  \"budget\": 1200000\n}"
+            },
+            "description": "Create a new department. name (2-100 chars), description (5-500 chars), budget (>=0) are required."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var res = pm.response.json();",
+                "pm.test('Dept created or exists', () => { pm.expect(pm.response.code).to.be.oneOf([201,409]); });",
+                "if (res.success) {",
+                "  pm.collectionVariables.set('dept_id', res.data.id);",
+                "  console.log('dept_id saved:', res.data.id);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "2. Create Department — HR",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/departments", "host": ["{{base_url}}"], "path": ["api","departments"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Human Resources\",\n  \"description\": \"Handles recruitment, payroll and employee relations\",\n  \"managerId\": \"1\",\n  \"budget\": 450000\n}"
+            },
+            "description": "Create an HR department with a manager linked."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Created or Exists', () => { pm.expect(pm.response.code).to.be.oneOf([201,409]); });"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "3. Get All Departments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/departments", "host": ["{{base_url}}"], "path": ["api","departments"] },
+            "description": "List all departments."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "4. Get Department by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/departments/{{dept_id}}", "host": ["{{base_url}}"], "path": ["api","departments","{{dept_id}}"] },
+            "description": "Get a specific department by its ID."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200 or 404', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "5. Update Department",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/departments/{{dept_id}}", "host": ["{{base_url}}"], "path": ["api","departments","{{dept_id}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"budget\": 1500000,\n  \"managerId\": \"1\"\n}"
+            },
+            "description": "Update department. At least 1 field is required. Updatable fields: name, description, managerId, budget."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Updated or Not Found', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "6. Delete Department",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/departments/{{dept_id}}", "host": ["{{base_url}}"], "path": ["api","departments","{{dept_id}}"] },
+            "description": "Delete a department by ID."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Deleted or Not Found', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+
+    {
+      "name": "Employee Service",
+      "item": [
+        {
+          "name": "1. Create Employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/employees", "host": ["{{base_url}}"], "path": ["api","employees"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@company.com\",\n  \"department\": \"Engineering\",\n  \"role\": \"Senior Engineer\",\n  \"salary\": 95000\n}"
+            },
+            "description": "Create a new employee. All fields required. salary must be >= 0."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var res = pm.response.json();",
+                "pm.test('Employee created', () => pm.response.to.have.status(201));",
+                "if (res.success) {",
+                "  pm.collectionVariables.set('employee_id', res.data.id);",
+                "  console.log('employee_id saved:', res.data.id);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "2. Get All Employees",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/employees", "host": ["{{base_url}}"], "path": ["api","employees"] },
+            "description": "Returns all employees."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "3. Get Employee by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/employees/{{employee_id}}", "host": ["{{base_url}}"], "path": ["api","employees","{{employee_id}}"] },
+            "description": "Get a specific employee by ID."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200 or 404', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "4. Update Employee",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/employees/{{employee_id}}", "host": ["{{base_url}}"], "path": ["api","employees","{{employee_id}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"salary\": 105000,\n  \"role\": \"Lead Engineer\"\n}"
+            },
+            "description": "Update employee. All fields optional — send only what you want to change."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Updated or Not Found', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "5. Calculate Salary (gRPC Payroll)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/employees/{{employee_id}}/salary", "host": ["{{base_url}}"], "path": ["api","employees","{{employee_id}}","salary"] },
+            "description": "Calculates net salary by calling the internal Payroll gRPC service. Applies 10% tax deduction."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Salary calculated', () => pm.response.to.have.status(200));",
+                "var res = pm.response.json();",
+                "if (res.success) {",
+                "  console.log('Base:', res.data.baseSalary, '| Tax:', res.data.taxDeduction, '| Net:', res.data.finalSalary);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "6. Delete Employee",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/employees/{{employee_id}}", "host": ["{{base_url}}"], "path": ["api","employees","{{employee_id}}"] },
+            "description": "Delete employee. This also triggers ActiveMQ events that cascade-delete all leave requests and attendance records for this employee."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Deleted or Not Found', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+
+    {
+      "name": "Leave Service",
+      "item": [
+        {
+          "name": "1. Submit Annual Leave",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/leaves", "host": ["{{base_url}}"], "path": ["api","leaves"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeId\": \"1\",\n  \"type\": \"annual\",\n  \"startDate\": \"2026-04-07\",\n  \"endDate\": \"2026-04-11\",\n  \"reason\": \"Family vacation trip abroad\"\n}"
+            },
+            "description": "Submit a leave request. type: annual | sick | casual | unpaid. Dates must be YYYY-MM-DD. reason min 5 chars."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var res = pm.response.json();",
+                "pm.test('Leave created', () => pm.response.to.have.status(201));",
+                "if (res.success) {",
+                "  pm.collectionVariables.set('leave_id', res.data.id);",
+                "  console.log('leave_id saved:', res.data.id);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "2. Submit Sick Leave",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/leaves", "host": ["{{base_url}}"], "path": ["api","leaves"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeId\": \"1\",\n  \"type\": \"sick\",\n  \"startDate\": \"2026-03-20\",\n  \"endDate\": \"2026-03-21\",\n  \"reason\": \"Doctor appointment and recovery rest\"\n}"
+            },
+            "description": "Submit a sick leave request."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "3. Get All Leave Requests",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/leaves", "host": ["{{base_url}}"], "path": ["api","leaves"] },
+            "description": "Get all leave requests (no filter)."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "4. Get Leaves — Filter by Status (pending)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/leaves?status=pending",
+              "host": ["{{base_url}}"],
+              "path": ["api","leaves"],
+              "query": [{ "key": "status", "value": "pending" }]
+            },
+            "description": "Filter leaves by status. Options: pending | approved | rejected"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "5. Get Leaves — Filter by Type (annual)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/leaves?type=annual",
+              "host": ["{{base_url}}"],
+              "path": ["api","leaves"],
+              "query": [{ "key": "type", "value": "annual" }]
+            },
+            "description": "Filter leaves by type. Options: annual | sick | casual | unpaid"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "6. Get Leaves — Filter by Employee",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/leaves?employeeId=1",
+              "host": ["{{base_url}}"],
+              "path": ["api","leaves"],
+              "query": [{ "key": "employeeId", "value": "1" }]
+            },
+            "description": "Get all leave requests for employee ID 1."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "7. Get Leave by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/leaves/{{leave_id}}", "host": ["{{base_url}}"], "path": ["api","leaves","{{leave_id}}"] },
+            "description": "Get a specific leave request by ID."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200 or 404', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "8. Approve Leave",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/leaves/{{leave_id}}/status", "host": ["{{base_url}}"], "path": ["api","leaves","{{leave_id}}","status"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"reviewNote\": \"Approved by HR manager\"\n}"
+            },
+            "description": "Approve a leave request. status must be: approved | rejected | pending"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Updated or Not Found', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "9. Reject Leave",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/leaves/{{leave_id}}/status", "host": ["{{base_url}}"], "path": ["api","leaves","{{leave_id}}","status"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"rejected\",\n  \"reviewNote\": \"Insufficient notice period, please reapply with 2 weeks notice\"\n}"
+            },
+            "description": "Reject a leave request with an optional note."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Updated or Not Found', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "10. Get Employee Leave History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/employees/{{employee_id}}/leaves", "host": ["{{base_url}}"], "path": ["api","employees","{{employee_id}}","leaves"] },
+            "description": "Get all leave requests submitted by a specific employee."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "11. Get Employee Leave Balance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/employees/{{employee_id}}/leaves/balance", "host": ["{{base_url}}"], "path": ["api","employees","{{employee_id}}","leaves","balance"] },
+            "description": "Get remaining leave balance for an employee. Shows annual (20), sick (10), casual (5) allocations minus used days."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Balance fetched', () => pm.response.to.have.status(200));",
+                "var res = pm.response.json();",
+                "if (res.success) {",
+                "  var d = res.data;",
+                "  console.log('Annual remaining:', d.annualBalance - d.usedAnnual);",
+                "  console.log('Sick remaining:', d.sickBalance - d.usedSick);",
+                "  console.log('Casual remaining:', d.casualBalance - d.usedCasual);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "12. Delete Leave Request",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/leaves/{{leave_id}}", "host": ["{{base_url}}"], "path": ["api","leaves","{{leave_id}}"] },
+            "description": "Delete a leave request by ID."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Deleted or Not Found', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+
+    {
+      "name": "Attendance Service",
+      "item": [
+        {
+          "name": "1. Check In",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/attendance/checkin", "host": ["{{base_url}}"], "path": ["api","attendance","checkin"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeId\": \"1\",\n  \"date\": \"2026-03-17\",\n  \"checkIn\": \"09:15\",\n  \"notes\": \"Arrived on time\"\n}"
+            },
+            "description": "Record a check-in. date must be YYYY-MM-DD. checkIn must be HH:MM (24-hour). One check-in per employee per date."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var res = pm.response.json();",
+                "pm.test('Check-in recorded', () => { pm.expect(pm.response.code).to.be.oneOf([201,409]); });",
+                "if (res.success) {",
+                "  pm.collectionVariables.set('attendance_id', res.data.id);",
+                "  console.log('attendance_id saved:', res.data.id);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "2. Check Out",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/attendance/{{attendance_id}}/checkout", "host": ["{{base_url}}"], "path": ["api","attendance","{{attendance_id}}","checkout"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checkOut\": \"18:30\",\n  \"notes\": \"Left after standup meeting\"\n}"
+            },
+            "description": "Record check-out. Auto-calculates hoursWorked. checkOut must be HH:MM (24-hour)."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Check-out recorded', () => { pm.expect(pm.response.code).to.be.oneOf([200,404,409]); });",
+                "var res = pm.response.json();",
+                "if (res.success) console.log('Hours worked:', res.data.hoursWorked);"
+              ],
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "3. Get All Attendance Records",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/attendance", "host": ["{{base_url}}"], "path": ["api","attendance"] },
+            "description": "Get all attendance records (no filter)."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "4. Get Attendance — Filter by Date",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/attendance?date=2026-03-17",
+              "host": ["{{base_url}}"],
+              "path": ["api","attendance"],
+              "query": [{ "key": "date", "value": "2026-03-17" }]
+            },
+            "description": "Filter attendance by a specific date (YYYY-MM-DD)."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "5. Get Attendance — Filter by Employee",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/attendance?employeeId=1",
+              "host": ["{{base_url}}"],
+              "path": ["api","attendance"],
+              "query": [{ "key": "employeeId", "value": "1" }]
+            },
+            "description": "Filter attendance records by employee ID."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "6. Get Attendance — Filter by Month",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/attendance?month=2026-03",
+              "host": ["{{base_url}}"],
+              "path": ["api","attendance"],
+              "query": [{ "key": "month", "value": "2026-03" }]
+            },
+            "description": "Filter attendance records for a given month (YYYY-MM)."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "7. Get Attendance Record by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/attendance/{{attendance_id}}", "host": ["{{base_url}}"], "path": ["api","attendance","{{attendance_id}}"] },
+            "description": "Get a single attendance record by its ID."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200 or 404', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "8. Get Monthly Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/employees/{{employee_id}}/attendance/summary?month=2026-03",
+              "host": ["{{base_url}}"],
+              "path": ["api","employees","{{employee_id}}","attendance","summary"],
+              "query": [{ "key": "month", "value": "2026-03" }]
+            },
+            "description": "Get a monthly attendance summary for an employee. Returns totalDays, totalHours."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Summary fetched', () => pm.response.to.have.status(200));",
+                "var res = pm.response.json();",
+                "if (res.success) {",
+                "  var d = res.data;",
+                "  console.log('Days present:', d.totalDays, '| Hours worked:', d.totalHours);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "9. Delete Attendance Record",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/attendance/{{attendance_id}}", "host": ["{{base_url}}"], "path": ["api","attendance","{{attendance_id}}"] },
+            "description": "Delete an attendance record by ID."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Deleted or Not Found', () => { pm.expect(pm.response.code).to.be.oneOf([200,404]); });"], "type": "text/javascript" } }]
+        }
+      ]
+    },
+
+    {
+      "name": "Health Checks",
+      "item": [
+        {
+          "name": "NGINX Gateway",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] },
+            "description": "Health check for the NGINX API Gateway."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Gateway healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Employee Backend",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:3001/health"},
+            "description": "Direct health check for the Employee backend."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Backend healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Auth Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:3002/health" },
+            "description": "Direct health check for the Auth service."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Auth healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Leave Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:3003/health"},
+            "description": "Direct health check for the Leave service."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Leave healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Attendance Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:3004/health" },
+            "description": "Direct health check for the Attendance service."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Attendance healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Department Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:3005/health"},
+            "description": "Direct health check for the Department service."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Department healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "Notification Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:3006/health"},
+            "description": "Direct health check for the Notification service."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Notification healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
+        }
+      ]
+    }
+
+  ,
+
+  {
+    "name": "gRPC Services",
+    "description": "Native gRPC calls.\n\nPRE-REQUISITES:\n1. Use Postman v10+ (gRPC is natively supported).\n2. For each request click 'New' → 'gRPC Request' (or open via the URL bar).\n3. In the URL field paste the server address shown per request.\n4. Click 'Select a method' → 'Import a .proto file' and import the relevant .proto from the project.\n5. Pick the method, paste the JSON body, then click 'Invoke'.\n\nAlt — grpcurl (CLI):\n  grpcurl -plaintext -d '{\"baseSalary\":95000}' localhost:15051 payroll.PayrollService/CalculateSalary",
+    "item": [
+
+      {
+        "name": "Payroll gRPC — localhost:15051",
+        "item": [
+          {
+            "name": "CalculateSalary",
+            "request": {
+              "method": "POST",
+              "header": [],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"baseSalary\": 95000\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "grpc://localhost:15051/payroll.PayrollService/CalculateSalary",
+                "protocol": "grpc",
+                "host": ["localhost"],
+                "port": "15051",
+                "path": ["payroll.PayrollService", "CalculateSalary"]
+              },
+              "description": "Proto: grpc-service/payroll.proto\nPackage: payroll\nService: PayrollService\n\nRequest fields:\n  baseSalary (double) — gross salary before tax\n\nResponse fields:\n  finalSalary, taxDeduction, taxRate\n\nCLI equivalent:\n  grpcurl -plaintext -d '{\"baseSalary\":95000}' localhost:15051 payroll.PayrollService/CalculateSalary"
+            },
+            "protocolProfileBehavior": { "disableBodyPruning": true },
+            "response": []
+          }
+        ]
+      },
+
+      {
+        "name": "Auth gRPC — localhost:15052",
+        "item": [
+          {
+            "name": "ValidateToken",
+            "request": {
+              "method": "POST",
+              "header": [],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"token\": \"{{token}}\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "grpc://localhost:15052/auth.AuthService/ValidateToken",
+                "protocol": "grpc",
+                "host": ["localhost"],
+                "port": "15052",
+                "path": ["auth.AuthService", "ValidateToken"]
+              },
+              "description": "Proto: auth-service/grpc/proto/auth.proto\nPackage: auth\nService: AuthService\n\nRequest fields:\n  token (string) — JWT bearer token (use {{token}} variable)\n\nResponse fields:\n  valid (bool), userId, email, role, error\n\nCLI equivalent:\n  grpcurl -plaintext -d '{\"token\":\"<jwt>\"}' localhost:15052 auth.AuthService/ValidateToken"
+            },
+            "protocolProfileBehavior": { "disableBodyPruning": true },
+            "response": []
+          },
+          {
+            "name": "GetUser",
+            "request": {
+              "method": "POST",
+              "header": [],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"userId\": \"{{user_id}}\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "grpc://localhost:15052/auth.AuthService/GetUser",
+                "protocol": "grpc",
+                "host": ["localhost"],
+                "port": "15052",
+                "path": ["auth.AuthService", "GetUser"]
+              },
+              "description": "Proto: auth-service/grpc/proto/auth.proto\nPackage: auth\nService: AuthService\n\nRequest fields:\n  userId (string) — user ID from Auth register/login (use {{user_id}} variable)\n\nResponse fields:\n  found (bool), id, email, role, employeeId\n\nCLI equivalent:\n  grpcurl -plaintext -d '{\"userId\":\"<id>\"}' localhost:15052 auth.AuthService/GetUser"
+            },
+            "protocolProfileBehavior": { "disableBodyPruning": true },
+            "response": []
+          }
+        ]
+      },
+
+      {
+        "name": "Leave gRPC — localhost:15053",
+        "item": [
+          {
+            "name": "GetLeaveBalance",
+            "request": {
+              "method": "POST",
+              "header": [],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"employeeId\": \"{{employee_id}}\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "grpc://localhost:15053/leave.LeaveService/GetLeaveBalance",
+                "protocol": "grpc",
+                "host": ["localhost"],
+                "port": "15053",
+                "path": ["leave.LeaveService", "GetLeaveBalance"]
+              },
+              "description": "Proto: leave-service/grpc/proto/leave.proto\nPackage: leave\nService: LeaveService\n\nRequest fields:\n  employeeId (string) — employee ID (use {{employee_id}} variable)\n\nResponse fields:\n  annualBalance, sickBalance, casualBalance, usedAnnual, usedSick, usedCasual\n\nCLI equivalent:\n  grpcurl -plaintext -d '{\"employeeId\":\"<id>\"}' localhost:15053 leave.LeaveService/GetLeaveBalance"
+            },
+            "protocolProfileBehavior": { "disableBodyPruning": true },
+            "response": []
+          },
+          {
+            "name": "GetEmployeeLeaves",
+            "request": {
+              "method": "POST",
+              "header": [],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"employeeId\": \"{{employee_id}}\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "grpc://localhost:15053/leave.LeaveService/GetEmployeeLeaves",
+                "protocol": "grpc",
+                "host": ["localhost"],
+                "port": "15053",
+                "path": ["leave.LeaveService", "GetEmployeeLeaves"]
+              },
+              "description": "Proto: leave-service/grpc/proto/leave.proto\nPackage: leave\nService: LeaveService\n\nRequest fields:\n  employeeId (string) — employee ID (use {{employee_id}} variable)\n\nResponse fields:\n  leaves[] — array of LeaveRecord { id, employeeId, type, startDate, endDate, status, reason }\n\nCLI equivalent:\n  grpcurl -plaintext -d '{\"employeeId\":\"<id>\"}' localhost:15053 leave.LeaveService/GetEmployeeLeaves"
+            },
+            "protocolProfileBehavior": { "disableBodyPruning": true },
+            "response": []
+          }
+        ]
+      },
+
+      {
+        "name": "Department gRPC — localhost:15054",
+        "item": [
+          {
+            "name": "GetDepartment",
+            "request": {
+              "method": "POST",
+              "header": [],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"id\": \"{{dept_id}}\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "grpc://localhost:15054/department.DepartmentService/GetDepartment",
+                "protocol": "grpc",
+                "host": ["localhost"],
+                "port": "15054",
+                "path": ["department.DepartmentService", "GetDepartment"]
+              },
+              "description": "Proto: department-service/grpc/proto/department.proto\nPackage: department\nService: DepartmentService\n\nRequest fields:\n  id (string) — department ID (use {{dept_id}} variable)\n\nResponse fields:\n  found (bool), id, name, description, managerId, budget\n\nCLI equivalent:\n  grpcurl -plaintext -d '{\"id\":\"<id>\"}' localhost:15054 department.DepartmentService/GetDepartment"
+            },
+            "protocolProfileBehavior": { "disableBodyPruning": true },
+            "response": []
+          },
+          {
+            "name": "GetAllDepartments",
+            "request": {
+              "method": "POST",
+              "header": [],
+              "body": {
+                "mode": "raw",
+                "raw": "{}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "grpc://localhost:15054/department.DepartmentService/GetAllDepartments",
+                "protocol": "grpc",
+                "host": ["localhost"],
+                "port": "15054",
+                "path": ["department.DepartmentService", "GetAllDepartments"]
+              },
+              "description": "Proto: department-service/grpc/proto/department.proto\nPackage: department\nService: DepartmentService\n\nRequest: empty message {}\n\nResponse fields:\n  departments[] — array of DepartmentItem { id, name, description, managerId, budget }\n\nCLI equivalent:\n  grpcurl -plaintext -d '{}' localhost:15054 department.DepartmentService/GetAllDepartments"
+            },
+            "protocolProfileBehavior": { "disableBodyPruning": true },
+            "response": []
+          },
+          {
+            "name": "DepartmentExists",
+            "request": {
+              "method": "POST",
+              "header": [],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"name\": \"Engineering\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "grpc://localhost:15054/department.DepartmentService/DepartmentExists",
+                "protocol": "grpc",
+                "host": ["localhost"],
+                "port": "15054",
+                "path": ["department.DepartmentService", "DepartmentExists"]
+              },
+              "description": "Proto: department-service/grpc/proto/department.proto\nPackage: department\nService: DepartmentService\n\nRequest fields:\n  name (string) — exact department name to check\n\nResponse fields:\n  exists (bool), id (string — set only when exists=true)\n\nCLI equivalent:\n  grpcurl -plaintext -d '{\"name\":\"Engineering\"}' localhost:15054 department.DepartmentService/DepartmentExists"
+            },
+            "protocolProfileBehavior": { "disableBodyPruning": true },
+            "response": []
+          }
+        ]
+      }
+
+    ]
+  }
+
+  ]
+}

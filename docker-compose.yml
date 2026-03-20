@@ -5,22 +5,22 @@ services:
   # -------------------------------------------------------------------------
 
   activemq:
-    image: rmohr/activemq:5.15.9-alpine
+    image: apache/activemq-classic:5.18.3
     container_name: activemq
     ports:
-      - "61613:61613"   # STOMP
-      - "61616:61616"   # OpenWire / JMS
       - "8161:8161"     # Admin Web Console  (admin/admin)
+      - "61613:61613"   # STOMP (needed if you want to send test messages from host)
     environment:
-      - ACTIVEMQ_ADMIN_LOGIN=admin
-      - ACTIVEMQ_ADMIN_PASSWORD=admin
+      - ACTIVEMQ_CONNECTION_USER=admin
+      - ACTIVEMQ_CONNECTION_PASSWORD=admin
     networks:
       - employee-network
     healthcheck:
-      test: ["CMD", "sh", "-c", "nc -z localhost 61613"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "curl -sf http://localhost:8161/admin/ -u admin:admin || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 30s
 
   # -------------------------------------------------------------------------
   # Existing services
@@ -32,7 +32,7 @@ services:
       dockerfile: Dockerfile
     container_name: payroll-grpc-service
     ports:
-      - "50051:50051"
+      - "15051:50051"   # host:container — use localhost:15051 in Postman
     networks:
       - employee-network
     environment:
@@ -86,7 +86,7 @@ services:
     container_name: auth-service
     ports:
       - "3002:3002"
-      - "50052:50052"
+      - "15052:50052"   # gRPC — host:container, use localhost:15052 in Postman
     networks:
       - employee-network
     environment:
@@ -110,7 +110,7 @@ services:
     container_name: leave-service
     ports:
       - "3003:3003"
-      - "50053:50053"
+      - "15053:50053"   # gRPC — host:container, use localhost:15053 in Postman
     networks:
       - employee-network
     environment:
@@ -152,7 +152,7 @@ services:
     container_name: department-service
     ports:
       - "3005:3005"
-      - "50054:50054"
+      - "15054:50054"   # gRPC — host:container, use localhost:15054 in Postman
     networks:
       - employee-network
     environment:
