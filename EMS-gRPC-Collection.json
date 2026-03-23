@@ -33,7 +33,7 @@
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "grpc://localhost:15051/payroll.PayrollService/CalculateSalary",
+              "raw": "grpc://{{grpc_payroll}}/payroll.PayrollService/CalculateSalary",
               "protocol": "grpc",
               "host": ["localhost"],
               "port": "15051",
@@ -62,7 +62,7 @@
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "grpc://localhost:15052/auth.AuthService/ValidateToken",
+              "raw": "grpc://{{grpc_auth}}/auth.AuthService/ValidateToken",
               "protocol": "grpc",
               "host": ["localhost"],
               "port": "15052",
@@ -84,7 +84,7 @@
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "grpc://localhost:15052/auth.AuthService/GetUser",
+              "raw": "grpc://{{grpc_auth}}/auth.AuthService/GetUser",
               "protocol": "grpc",
               "host": ["localhost"],
               "port": "15052",
@@ -113,7 +113,7 @@
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "grpc://localhost:15053/leave.LeaveService/GetLeaveBalance",
+              "raw": "grpc://{{grpc_leave}}/leave.LeaveService/GetLeaveBalance",
               "protocol": "grpc",
               "host": ["localhost"],
               "port": "15053",
@@ -135,7 +135,7 @@
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "grpc://localhost:15053/leave.LeaveService/GetEmployeeLeaves",
+              "raw": "grpc://{{grpc_leave}}/leave.LeaveService/GetEmployeeLeaves",
               "protocol": "grpc",
               "host": ["localhost"],
               "port": "15053",
@@ -164,7 +164,7 @@
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "grpc://localhost:15054/department.DepartmentService/GetDepartment",
+              "raw": "grpc://{{grpc_dept}}/department.DepartmentService/GetDepartment",
               "protocol": "grpc",
               "host": ["localhost"],
               "port": "15054",
@@ -186,7 +186,7 @@
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "grpc://localhost:15054/department.DepartmentService/GetAllDepartments",
+              "raw": "grpc://{{grpc_dept}}/department.DepartmentService/GetAllDepartments",
               "protocol": "grpc",
               "host": ["localhost"],
               "port": "15054",
@@ -208,7 +208,7 @@
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "grpc://localhost:15054/department.DepartmentService/DepartmentExists",
+              "raw": "grpc://{{grpc_dept}}/department.DepartmentService/DepartmentExists",
               "protocol": "grpc",
               "host": ["localhost"],
               "port": "15054",

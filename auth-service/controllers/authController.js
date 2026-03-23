@@ -1,11 +1,30 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { publish } = require('../messaging/producer');
+const { publish, publishQueue } = require('../messaging/producer');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'auth-service-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const SALT_ROUNDS = 10;
+
+// ---------------------------------------------------------------------------
+// OTP (in-memory) for demo/testing
+// ---------------------------------------------------------------------------
+// In a real system you would store OTPs in Redis/db and send via email/SMS.
+const OTP_TTL_MS = parseInt(process.env.OTP_TTL_MS || `${5 * 60 * 1000}`, 10); // 5 minutes default
+const OTP_MAX_ATTEMPTS = parseInt(process.env.OTP_MAX_ATTEMPTS || '5', 10);
+const OTP_RETURN_TO_CLIENT = String(process.env.OTP_RETURN_TO_CLIENT ?? 'true').toLowerCase() === 'true';
+const otpRequests = new Map(); // otpRequestId -> { userId, email, role, otp, expiresAt, attempts }
+const otpRequestsByEmail = new Map(); // email -> otpRequestId
+
+function generateOtp() {
+  // 6-digit OTP, zero padded
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function generateOtpRequestId() {
+  return `otp_${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
+}
 
 const register = async (req, res) => {
   try {
@@ -49,20 +68,102 @@ const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    const payload = { id: user.id, email: user.email, role: user.role };
+    const otpRequestId = generateOtpRequestId();
+    const otp = generateOtp();
+    const expiresAt = Date.now() + OTP_TTL_MS;
+
+    otpRequests.set(otpRequestId, {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      otp,
+      expiresAt,
+      attempts: 0
+    });
+    otpRequestsByEmail.set(email, otpRequestId);
+
+    // Publish OTP to a queue so a single consumer can read it (practical for Postman testing).
+    await publishQueue('auth.otp', 'otp.generated', {
+      otpRequestId,
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      otp,
+      expiresAt
+    }).catch((err) => console.warn('[Auth] Could not publish otp.generated event:', err.message));
+
+    res.json({
+      success: true,
+      data: {
+        otpRequestId,
+        ...(OTP_RETURN_TO_CLIENT ? { otp } : {}),
+        expiresIn: '5m',
+        user: User.getById(user.id)
+      },
+      message: 'OTP sent. Verify OTP to complete login.'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Login failed' });
+  }
+};
+
+const verifyOtp = async (req, res) => {
+  try {
+    const { otpRequestId, email, otp } = req.body;
+
+    let request = otpRequestId ? otpRequests.get(otpRequestId) : null;
+    if (!request && email) {
+      const rid = otpRequestsByEmail.get(email);
+      if (rid) request = otpRequests.get(rid);
+    }
+    if (!request) {
+      return res.status(400).json({ success: false, message: 'Invalid otpRequestId/email' });
+    }
+
+    if (Date.now() > request.expiresAt) {
+      otpRequests.delete(otpRequestId);
+      return res.status(401).json({ success: false, message: 'OTP expired' });
+    }
+
+    request.attempts += 1;
+    if (request.attempts > OTP_MAX_ATTEMPTS) {
+      otpRequests.delete(otpRequestId);
+      return res.status(429).json({ success: false, message: 'Too many OTP attempts' });
+    }
+
+    if (String(otp) !== String(request.otp)) {
+      return res.status(401).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    // OTP verified => issue JWT
+    // If verifying by email, otpRequestId may be missing in the request body.
+    if (otpRequestId) otpRequests.delete(otpRequestId);
+    if (request.email) {
+      const rid = otpRequestsByEmail.get(request.email);
+      if (rid) otpRequests.delete(rid);
+      otpRequestsByEmail.delete(request.email);
+    }
+
+    const payload = { id: request.userId, email: request.email, role: request.role };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+    await publish('auth.otp', 'otp.verified', {
+      otpRequestId,
+      userId: request.userId,
+      email: request.email
+    }).catch((err) => console.warn('[Auth] Could not publish otp.verified event:', err.message));
 
     res.json({
       success: true,
       data: {
         token,
         expiresIn: JWT_EXPIRES_IN,
-        user: User.getById(user.id)
+        user: User.getById(request.userId)
       },
-      message: 'Login successful'
+      message: 'OTP verified. Login successful.'
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Login failed' });
+    res.status(500).json({ success: false, message: 'OTP verification failed' });
   }
 };
 
@@ -137,4 +238,4 @@ const deleteUser = async (req, res) => {
   }
 };
 
-module.exports = { register, login, verifyToken, getAllUsers, getUserById, updateUser, deleteUser };
+module.exports = { register, login, verifyOtp, verifyToken, getAllUsers, getUserById, updateUser, deleteUser };

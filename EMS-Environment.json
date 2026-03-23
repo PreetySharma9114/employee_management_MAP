@@ -14,7 +14,7 @@
       "value": "",
       "type": "secret",
       "enabled": true,
-      "description": "JWT token — auto-filled after Login request"
+      "description": "JWT token — auto-filled after Verify OTP request"
     },
     {
       "key": "user_id",
@@ -22,6 +22,13 @@
       "type": "default",
       "enabled": true,
       "description": "Auth user ID — auto-filled after Register"
+    },
+    {
+      "key": "otp_code",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "OTP code — copy from notification-service logs and paste here"
     },
     {
       "key": "employee_id",

@@ -42,6 +42,7 @@ function startConsumer() {
   manager.connect((connectError, client, reconnect) => {
     if (connectError) {
       console.error('[Leave-Consumer] Fatal connection error:', connectError.message);
+      reconnect();
       return;
     }
 
@@ -58,13 +59,14 @@ function startConsumer() {
     client.subscribe(subscribeHeaders, (subscribeError, message) => {
       if (subscribeError) {
         console.error('[Leave-Consumer] Subscribe error:', subscribeError.message);
+        reconnect();
         return;
       }
 
       message.readString('utf-8', (readError, body) => {
         if (readError) {
           console.error('[Leave-Consumer] Read error:', readError.message);
-          client.ack(message);
+          reconnect();
           return;
         }
         try {

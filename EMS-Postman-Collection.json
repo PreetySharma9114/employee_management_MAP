@@ -54,11 +54,26 @@
             "url": { "raw": "{{base_url}}/api/auth/register", "host": ["{{base_url}}"], "path": ["api","auth","register"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"john.doe@company.com\",\n  \"password\": \"pass1234\",\n  \"role\": \"employee\",\n  \"employeeId\": \"1\"\n}"
+              "raw": "{\n  \"email\": \"john.doe@company.com\",\n  \"password\": \"pass1234\",\n  \"role\": \"employee\",\n  \"employeeId\": \"{{employee_id}}\"\n}"
             },
             "description": "Register a user linked to an employee record."
           },
-          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 201 or 409', () => { pm.expect(pm.response.code).to.be.oneOf([201,409]); });"], "type": "text/javascript" } }]
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": ["if (!pm.collectionVariables.get('employee_id')) pm.collectionVariables.set('employee_id','1');"],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Status 201 or 409', () => { pm.expect(pm.response.code).to.be.oneOf([201,409]); });"],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "3. Login",
@@ -70,14 +85,42 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"admin@company.com\",\n  \"password\": \"password123\"\n}"
             },
-            "description": "Login and receive a JWT token. Token is auto-saved to {{token}} variable."
+            "description": "Login (dev OTP mode). OTP is published to ActiveMQ queue `/queue/auth.otp` and also returned in the response (so Postman can stay practical). Verify OTP to get JWT token."
           },
           "event": [{
             "listen": "test",
             "script": {
               "exec": [
                 "var res = pm.response.json();",
-                "pm.test('Login successful', () => pm.response.to.have.status(200));",
+                "pm.test('Login successful (OTP sent)', () => pm.response.to.have.status(200));",
+                "if (res.success && res.data.user) {",
+                "  pm.collectionVariables.set('user_id', res.data.user.id);",
+                "  if (res.data.otp) pm.collectionVariables.set('otp_code', res.data.otp);",
+                "  console.log('otp_code saved (from login response)');",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }]
+        },
+        {
+          "name": "4. Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/verify-otp", "host": ["{{base_url}}"], "path": ["api","auth","verify-otp"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@company.com\",\n  \"otp\": \"{{otp_code}}\"\n}"
+            },
+            "description": "Verify OTP using `{email, otp}` (no otpRequestId). On success returns JWT token and auto-saves it to `{{token}}`."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var res = pm.response.json();",
+                "pm.test('OTP verified', () => pm.response.to.have.status(200));",
                 "if (res.success && res.data.token) {",
                 "  pm.collectionVariables.set('token', res.data.token);",
                 "  console.log('JWT token saved.');",
@@ -88,7 +131,7 @@
           }]
         },
         {
-          "name": "4. Verify Token",
+          "name": "5. Verify Token",
           "request": {
             "method": "GET",
             "header": [
@@ -171,7 +214,7 @@
             "url": { "raw": "{{base_url}}/api/departments", "host": ["{{base_url}}"], "path": ["api","departments"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Human Resources\",\n  \"description\": \"Handles recruitment, payroll and employee relations\",\n  \"managerId\": \"1\",\n  \"budget\": 450000\n}"
+              "raw": "{\n  \"name\": \"Human Resources\",\n  \"description\": \"Handles recruitment, payroll and employee relations\",\n  \"managerId\": \"{{user_id}}\",\n  \"budget\": 450000\n}"
             },
             "description": "Create an HR department with a manager linked."
           },
@@ -205,7 +248,7 @@
             "url": { "raw": "{{base_url}}/api/departments/{{dept_id}}", "host": ["{{base_url}}"], "path": ["api","departments","{{dept_id}}"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"budget\": 1500000,\n  \"managerId\": \"1\"\n}"
+              "raw": "{\n  \"budget\": 1500000,\n  \"managerId\": \"{{user_id}}\"\n}"
             },
             "description": "Update department. At least 1 field is required. Updatable fields: name, description, managerId, budget."
           },
@@ -334,7 +377,7 @@
             "url": { "raw": "{{base_url}}/api/leaves", "host": ["{{base_url}}"], "path": ["api","leaves"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"employeeId\": \"1\",\n  \"type\": \"annual\",\n  \"startDate\": \"2026-04-07\",\n  \"endDate\": \"2026-04-11\",\n  \"reason\": \"Family vacation trip abroad\"\n}"
+              "raw": "{\n  \"employeeId\": \"{{employee_id}}\",\n  \"type\": \"annual\",\n  \"startDate\": \"2026-04-07\",\n  \"endDate\": \"2026-04-11\",\n  \"reason\": \"Family vacation trip abroad\"\n}"
             },
             "description": "Submit a leave request. type: annual | sick | casual | unpaid. Dates must be YYYY-MM-DD. reason min 5 chars."
           },
@@ -361,7 +404,7 @@
             "url": { "raw": "{{base_url}}/api/leaves", "host": ["{{base_url}}"], "path": ["api","leaves"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"employeeId\": \"1\",\n  \"type\": \"sick\",\n  \"startDate\": \"2026-03-20\",\n  \"endDate\": \"2026-03-21\",\n  \"reason\": \"Doctor appointment and recovery rest\"\n}"
+              "raw": "{\n  \"employeeId\": \"{{employee_id}}\",\n  \"type\": \"sick\",\n  \"startDate\": \"2026-03-20\",\n  \"endDate\": \"2026-03-21\",\n  \"reason\": \"Doctor appointment and recovery rest\"\n}"
             },
             "description": "Submit a sick leave request."
           },
@@ -413,10 +456,10 @@
             "method": "GET",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": {
-              "raw": "{{base_url}}/api/leaves?employeeId=1",
+              "raw": "{{base_url}}/api/leaves?employeeId={{employee_id}}",
               "host": ["{{base_url}}"],
               "path": ["api","leaves"],
-              "query": [{ "key": "employeeId", "value": "1" }]
+              "query": [{ "key": "employeeId", "value": "{{employee_id}}" }]
             },
             "description": "Get all leave requests for employee ID 1."
           },
@@ -519,7 +562,7 @@
             "url": { "raw": "{{base_url}}/api/attendance/checkin", "host": ["{{base_url}}"], "path": ["api","attendance","checkin"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"employeeId\": \"1\",\n  \"date\": \"2026-03-17\",\n  \"checkIn\": \"09:15\",\n  \"notes\": \"Arrived on time\"\n}"
+              "raw": "{\n  \"employeeId\": \"{{employee_id}}\",\n  \"date\": \"2026-03-17\",\n  \"checkIn\": \"09:15\",\n  \"notes\": \"Arrived on time\"\n}"
             },
             "description": "Record a check-in. date must be YYYY-MM-DD. checkIn must be HH:MM (24-hour). One check-in per employee per date."
           },
@@ -593,10 +636,10 @@
             "method": "GET",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": {
-              "raw": "{{base_url}}/api/attendance?employeeId=1",
+              "raw": "{{base_url}}/api/attendance?employeeId={{employee_id}}",
               "host": ["{{base_url}}"],
               "path": ["api","attendance"],
-              "query": [{ "key": "employeeId", "value": "1" }]
+              "query": [{ "key": "employeeId", "value": "{{employee_id}}" }]
             },
             "description": "Filter attendance records by employee ID."
           },
@@ -686,7 +729,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "http://localhost:3001/health"},
+            "url": { "raw": "{{base_url}}/health"},
             "description": "Direct health check for the Employee backend."
           },
           "event": [{ "listen": "test", "script": { "exec": ["pm.test('Backend healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
@@ -696,7 +739,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "http://localhost:3002/health" },
+            "url": { "raw": "{{base_url}}/health" },
             "description": "Direct health check for the Auth service."
           },
           "event": [{ "listen": "test", "script": { "exec": ["pm.test('Auth healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
@@ -706,7 +749,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "http://localhost:3003/health"},
+            "url": { "raw": "{{base_url}}/health"},
             "description": "Direct health check for the Leave service."
           },
           "event": [{ "listen": "test", "script": { "exec": ["pm.test('Leave healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
@@ -716,7 +759,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "http://localhost:3004/health" },
+            "url": { "raw": "{{base_url}}/health" },
             "description": "Direct health check for the Attendance service."
           },
           "event": [{ "listen": "test", "script": { "exec": ["pm.test('Attendance healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
@@ -726,7 +769,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "http://localhost:3005/health"},
+            "url": { "raw": "{{base_url}}/health"},
             "description": "Direct health check for the Department service."
           },
           "event": [{ "listen": "test", "script": { "exec": ["pm.test('Department healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
@@ -736,7 +779,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "http://localhost:3006/health"},
+            "url": { "raw": "{{base_url}}/health"},
             "description": "Direct health check for the Notification service."
           },
           "event": [{ "listen": "test", "script": { "exec": ["pm.test('Notification healthy', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }]
@@ -765,7 +808,7 @@
                 "options": { "raw": { "language": "json" } }
               },
               "url": {
-                "raw": "grpc://localhost:15051/payroll.PayrollService/CalculateSalary",
+                "raw": "grpc://{{grpc_payroll}}/payroll.PayrollService/CalculateSalary",
                 "protocol": "grpc",
                 "host": ["localhost"],
                 "port": "15051",
@@ -793,7 +836,7 @@
                 "options": { "raw": { "language": "json" } }
               },
               "url": {
-                "raw": "grpc://localhost:15052/auth.AuthService/ValidateToken",
+                "raw": "grpc://{{grpc_auth}}/auth.AuthService/ValidateToken",
                 "protocol": "grpc",
                 "host": ["localhost"],
                 "port": "15052",
@@ -815,7 +858,7 @@
                 "options": { "raw": { "language": "json" } }
               },
               "url": {
-                "raw": "grpc://localhost:15052/auth.AuthService/GetUser",
+                "raw": "grpc://{{grpc_auth}}/auth.AuthService/GetUser",
                 "protocol": "grpc",
                 "host": ["localhost"],
                 "port": "15052",
@@ -843,7 +886,7 @@
                 "options": { "raw": { "language": "json" } }
               },
               "url": {
-                "raw": "grpc://localhost:15053/leave.LeaveService/GetLeaveBalance",
+                "raw": "grpc://{{grpc_leave}}/leave.LeaveService/GetLeaveBalance",
                 "protocol": "grpc",
                 "host": ["localhost"],
                 "port": "15053",
@@ -865,7 +908,7 @@
                 "options": { "raw": { "language": "json" } }
               },
               "url": {
-                "raw": "grpc://localhost:15053/leave.LeaveService/GetEmployeeLeaves",
+                "raw": "grpc://{{grpc_leave}}/leave.LeaveService/GetEmployeeLeaves",
                 "protocol": "grpc",
                 "host": ["localhost"],
                 "port": "15053",
@@ -893,7 +936,7 @@
                 "options": { "raw": { "language": "json" } }
               },
               "url": {
-                "raw": "grpc://localhost:15054/department.DepartmentService/GetDepartment",
+                "raw": "grpc://{{grpc_dept}}/department.DepartmentService/GetDepartment",
                 "protocol": "grpc",
                 "host": ["localhost"],
                 "port": "15054",
@@ -915,7 +958,7 @@
                 "options": { "raw": { "language": "json" } }
               },
               "url": {
-                "raw": "grpc://localhost:15054/department.DepartmentService/GetAllDepartments",
+                "raw": "grpc://{{grpc_dept}}/department.DepartmentService/GetAllDepartments",
                 "protocol": "grpc",
                 "host": ["localhost"],
                 "port": "15054",
@@ -937,7 +980,7 @@
                 "options": { "raw": { "language": "json" } }
               },
               "url": {
-                "raw": "grpc://localhost:15054/department.DepartmentService/DepartmentExists",
+                "raw": "grpc://{{grpc_dept}}/department.DepartmentService/DepartmentExists",
                 "protocol": "grpc",
                 "host": ["localhost"],
                 "port": "15054",

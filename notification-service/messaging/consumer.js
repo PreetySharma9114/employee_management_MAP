@@ -15,7 +15,9 @@ const TOPICS = [
   '/topic/employee.events',
   '/topic/leave.events',
   '/topic/attendance.events',
-  '/topic/department.events'
+  '/topic/department.events',
+  // OTP login flow (queue destination)
+  '/queue/auth.otp'
 ];
 
 function formatNotification(eventType, payload) {
@@ -31,13 +33,14 @@ function formatNotification(eventType, payload) {
     'attendance.checkout': `CHECK-OUT: Employee ${payload.employeeId} checked out at ${payload.checkOut} after ${payload.hoursWorked}h on ${payload.date}.`,
     'department.created': `NEW DEPARTMENT: "${payload.name}" department has been created with a budget of $${payload.budget}.`,
     'department.updated': `DEPARTMENT UPDATED: "${payload.name}" (ID: ${payload.id}) has been modified.`,
-    'department.deleted': `DEPARTMENT REMOVED: Department "${payload.name}" (ID: ${payload.id}) has been deleted.`
+    'department.deleted': `DEPARTMENT REMOVED: Department "${payload.name}" (ID: ${payload.id}) has been deleted.`,
+    'otp.generated': `OTP GENERATED (dev/local): ${payload.email} - otp=${payload.otp} (expiresAt=${payload.expiresAt})`
   };
 
   return templates[eventType] || `EVENT [${eventType}]: ${JSON.stringify(payload)}`;
 }
 
-function subscribeToTopic(client, topic) {
+function subscribeToTopic(client, topic, reconnect) {
   const subscribeHeaders = {
     destination: topic,
     ack: 'client-individual'
@@ -46,13 +49,14 @@ function subscribeToTopic(client, topic) {
   client.subscribe(subscribeHeaders, (subscribeError, message) => {
     if (subscribeError) {
       console.error(`[Notification-Consumer] Subscribe error on ${topic}:`, subscribeError.message);
+      if (reconnect) reconnect();
       return;
     }
 
     message.readString('utf-8', (readError, body) => {
       if (readError) {
         console.error(`[Notification-Consumer] Read error on ${topic}:`, readError.message);
-        client.ack(message);
+        if (reconnect) reconnect();
         return;
       }
 
@@ -99,8 +103,8 @@ function startConsumer() {
       reconnect();
     });
 
-    TOPICS.forEach((topic) => subscribeToTopic(client, topic));
-    console.log(`[Notification-Consumer] Subscribed to ${TOPICS.length} topics`);
+    TOPICS.forEach((topic) => subscribeToTopic(client, topic, reconnect));
+    console.log(`[Notification-Consumer] Subscribed to ${TOPICS.length} destinations`);
   });
 }
 

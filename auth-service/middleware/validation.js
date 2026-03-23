@@ -36,4 +36,28 @@ const validateLogin = (req, res, next) => {
   next();
 };
 
-module.exports = { validateRegister, validateLogin };
+const verifyOtpSchema = Joi.object({
+  otpRequestId: Joi.string().optional(),
+  email: Joi.string().email().optional(),
+  otp: Joi.string().pattern(/^\d{6}$/).required()
+}).custom((value, helpers) => {
+  // Allow either otpRequestId OR email-based verification (no otpRequestId needed for Postman).
+  if (!value.otpRequestId && !value.email) {
+    return helpers.error('any.custom', { message: 'Either otpRequestId or email is required' });
+  }
+  return value;
+});
+
+const validateVerifyOtp = (req, res, next) => {
+  const { error } = verifyOtpSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error',
+      details: error.details[0].message
+    });
+  }
+  next();
+};
+
+module.exports = { validateRegister, validateLogin, validateVerifyOtp };
