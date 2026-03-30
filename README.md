@@ -1,15 +1,40 @@
 # Employee Management System
 
-A comprehensive Employee Management System built with MERN stack (without MongoDB), Docker containers, and gRPC microservice architecture. This project demonstrates modern web development practices including containerization, microservices, and API integration.
+A comprehensive Employee Management System built with microservices (Node/Express + React), Docker containers, gRPC, and ActiveMQ (STOMP).
+
+Key notes:
+- All services use in-memory storage (no database) for demo/testing.
+- REST traffic goes through `nginx-gateway` (API gateway).
+- gRPC runs on internal service ports and is also mapped to host ports for Postman.
+- ActiveMQ is used for event-driven messaging: domain events use `/topic/...`, OTP uses `/queue/auth.otp`.
 
 ## 🏗️ Architecture Overview
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │    Backend      │    │  gRPC Service   │
-│   (React)       │◄──►│   (Express)     │◄──►│ (Payroll)       │
-│   Port: 80      │    │   Port: 3001    │    │   Port: 50051   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌───────────────────────┐      ┌───────────────────────┐
+│ Frontend (React)       │◄────►│ NGINX API Gateway      │
+│ Served via nginx       │      │ http://localhost:8080 │
+└───────────────────────┘      └───────────────────────┘
+                 │
+                 │ REST (/api/*)
+                 ▼
+┌────────────────────────────────────────────────────────────┐
+│ Microservices (HTTP)                                        │
+│ backend, auth-service, department-service, leave-service,  │
+│ attendance-service, notification-service                   │
+└────────────────────────────────────────────────────────────┘
+                 │
+                 │ gRPC (internal Docker network)
+                 ▼
+┌────────────────────────────────────────────────────────────┐
+│ Microservices (gRPC)                                      │
+│ grpc-service (Payroll), auth-service, leave-service,       │
+│ department-service                                          │
+└────────────────────────────────────────────────────────────┘
+
+ActiveMQ (STOMP):
+- Topics (domain events): /topic/employee.events, /topic/leave.events, /topic/attendance.events, /topic/department.events
+- Queue (OTP): /queue/auth.otp
 ```
 
 ## 📋 Features
@@ -34,6 +59,16 @@ A comprehensive Employee Management System built with MERN stack (without MongoD
 - **10% Tax Simulation**: Automatic tax calculation
 - **Standalone Container**: Independent microservice
 
+### Other HTTP Microservices
+- **auth-service**: register/login, plus OTP verification (`/api/auth/verify-otp`)
+- **department-service**: department CRUD (in-memory)
+- **leave-service**: leave request CRUD + balances (in-memory)
+- **attendance-service**: attendance CRUD (in-memory)
+- **notification-service**: STOMP consumer that listens to ActiveMQ destinations
+
+### OTP (ActiveMQ Queue)
+- OTP is published to `/queue/auth.otp` (dev-friendly so you can inspect it via logs)
+
 ### Frontend (React)
 - **Employee Management UI**: Add, view, delete employees
 - **Salary Calculator**: Integration with gRPC service
@@ -57,13 +92,13 @@ cd employee-management-system
 
 2. **Run with Docker Compose**:
 ```bash
-docker-compose up --build
+docker compose up -d --build
 ```
 
 3. **Access the application**:
-- **Frontend**: http://localhost:80
-- **Backend API**: http://localhost:3001
-- **Health Check**: http://localhost:3001/health
+- **Frontend + REST API Gateway**: http://localhost:8080
+- **Direct Frontend** (optional): http://localhost:80
+- **Gateway Health Check**: http://localhost:8080/health
 
 ## 📁 Project Structure
 
@@ -117,14 +152,34 @@ All containers communicate through a dedicated Docker network `employee-network`
 3. **Service Discovery**: Containers communicate using service names
 
 ### Port Mapping
-- **Frontend**: Port 80 (nginx)
-- **Backend**: Port 3001 (Express API)
-- **gRPC Service**: Port 50051 (gRPC)
+- **NGINX API Gateway**: Host `8080`
+- **Direct Frontend** (optional): Host `80`
+- **Backend REST** (direct): Host `3001` (also reachable via gateway at `/api/*`)
+
+gRPC ports are mapped to avoid Docker Desktop Mac conflicts:
+- Payroll gRPC: host `15051` -> container `50051`
+- Auth gRPC: host `15052` -> container `50052`
+- Leave gRPC: host `15053` -> container `50053`
+- Department gRPC: host `15054` -> container `50054`
+
+### ActiveMQ Destinations (STOMP)
+- Domain events (topics; broadcast):
+  - `/topic/employee.events`
+  - `/topic/leave.events`
+  - `/topic/attendance.events`
+  - `/topic/department.events`
+- OTP delivery (queue; point-to-point):
+  - `/queue/auth.otp`
 
 ### Environment Variables
-- `GRPC_HOST`: gRPC service hostname
-- `GRPC_PORT`: gRPC service port
-- `PORT`: Backend service port
+- `GRPC_HOST` / `GRPC_PORT`: internal gRPC host/port that `backend` uses
+- `PORT`: each HTTP service port (varies per service)
+- `ACTIVEMQ_HOST` / `ACTIVEMQ_PORT` / `ACTIVEMQ_USER` / `ACTIVEMQ_PASS`: broker connection config
+- `JWT_SECRET` / `JWT_EXPIRES_IN`: used by `auth-service`
+- OTP demo settings:
+  - `OTP_TTL_MS` (default 5 minutes)
+  - `OTP_MAX_ATTEMPTS` (default 5)
+  - `OTP_RETURN_TO_CLIENT` (default true in this repo)
 
 ## 📊 API Endpoints
 
@@ -196,16 +251,31 @@ npm start
 
 ### Testing
 
-1. **Test Backend API**:
+1. **Test NGINX API Gateway**:
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:8080/health
 ```
 
 2. **Test Frontend**:
-Visit http://localhost:80 in your browser
+Visit http://localhost:8080 in your browser
 
-3. **Test gRPC Service**:
-The gRPC service will be available on port 50051
+3. **Test gRPC Service (Postman/grpcurl)**:
+gRPC services are mapped to host ports `15051-15054`.
+
+## 🧪 Postman Testing (recommended)
+- `EMS-Postman-Collection.json` (REST + gRPC requests)
+- `EMS-Environment.json` (select environment `EMS Local`)
+
+OTP login order (REST):
+1. `POST /api/auth/login` -> gets OTP + saves `otp_code` automatically
+2. `POST /api/auth/verify-otp` -> send `{ email, otp }` -> gets JWT token (`{{token}}`)
+
+Employee flow order (optional):
+1. Create Department -> Create Employee
+2. Submit Leave -> Approve Leave
+3. Check In/Out Attendance
+4. Calculate Salary
+5. Delete Employee (verifies ActiveMQ cascade cleanup)
 
 ## 🔍 Key Concepts Demonstrated
 
@@ -223,26 +293,26 @@ The gRPC service will be available on port 50051
 
 ### Common Issues
 
-1. **Port Conflicts**: Ensure ports 80, 3001, and 50051 are available
+1. **Port Conflicts**: Ensure ports `80`, `8080`, `3001`, and `15051-15054` are available
 2. **Network Issues**: Docker network should be created automatically
 3. **Build Failures**: Check if all dependencies are correctly installed
-4. **Service Not Starting**: Check Docker logs with `docker-compose logs`
+4. **Service Not Starting**: Check Docker logs with `docker compose logs`
 
 ### Useful Commands
 ```bash
 # View all running containers
-docker-compose ps
+docker compose ps
 
 # View logs for specific service
-docker-compose logs backend
-docker-compose logs frontend
-docker-compose logs grpc-service
+docker compose logs backend
+docker compose logs frontend
+docker compose logs grpc-service
 
 # Stop all services
-docker-compose down
+docker compose down
 
 # Rebuild and start
-docker-compose up --build --force-recreate
+docker compose up --build --force-recreate
 ```
 
 ## 📝 Learning Outcomes
